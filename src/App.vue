@@ -117,7 +117,7 @@ export default {
     },
     createNewTable() {
       const tableId = btoa(Math.random().toString(36).substring(2)).replace(/\W+/, '');
-      window.location.href= "/?table_id=" + tableId;
+      window.location.href= window.location.origin + window.location.pathname + "?table_id=" + tableId;
     },
     onFlippingCardsRequested() {
       channel.trigger('client-request-flipping-cards', {});
