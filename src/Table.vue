@@ -76,7 +76,6 @@ export default {
       createNewVote() {
         this.voting = true;
         this.showStartVote = false;
-        this.selected = null;
         this.cardsUp = false;
         this.onNewVote();
       },
