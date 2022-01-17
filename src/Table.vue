@@ -1,11 +1,11 @@
 <template>
-    <div class="col-start-2 col-span-4 justify-self-center">
+    <div class="col-start-2 col-span-4 justify-self-center place-self-stretch">
         <div
-        class="bg-sky-200 block lg:min-w-[18vw] lg:min-h-[12vh] md:min-w-[40vw] md:min-h-[20vw] min-w-[50vw] min-h-[25vw] rounded-3xl flex"
+        class="bg-sky-200 block lg:min-w-[18vw] lg:min-h-[9vw] md:min-w-[40vw] md:min-h-[20vw] min-w-[50vw] min-h-[25vw] rounded-3xl flex"
         >
         <div class="self-center m-auto">
             <button
-            v-show="voting && selected"
+            v-show="showRevealCards && !cardsUp && !flippingCards"
             class="
                 bg-blue-500
                 hover:bg-blue-400
@@ -18,7 +18,7 @@
             @click="onFlipsCardsClicked"
             >Lật bài</button>
 
-            <span v-show="!selected" class="text-gray-700">Pick your cards!</span>
+            <span v-show="!showRevealCards" class="text-gray-700">Pick your cards!</span>
 
             <span v-if="flippingCards" class="font-bold text-blue-500">{{countdown}}</span>
 
@@ -43,28 +43,31 @@
 
 export default {
     props: {
-        selected: {
-          type: Boolean,
-          default: false
-        },
-        onCardsFlipped: {
-          type: Function
-        },
-        onFlippingCardsRequested: {
-          type: Function
-        },
-        onNewVote: {
-          type: Function
-        },
-        onNewVoteRequested: {
-          type: Function
-        }
+      cardsUp: {
+        type: Boolean,
+        default: false
+      },
+      showRevealCards: {
+        type: Boolean,
+        default: false
+      },
+      onCardsFlipped: {
+        type: Function
+      },
+      onFlippingCardsRequested: {
+        type: Function
+      },
+      onNewVote: {
+        type: Function
+      },
+      onNewVoteRequested: {
+        type: Function
+      }
     },
     data() {
         return {
             flippingCards: false,
             showStartVote: false,
-            voting: true,
             countdown: 0
         }
     },
@@ -74,9 +77,7 @@ export default {
         this.createNewVote();
       },
       createNewVote() {
-        this.voting = true;
         this.showStartVote = false;
-        this.cardsUp = false;
         this.onNewVote();
       },
       onFlipsCardsClicked() {
@@ -84,7 +85,6 @@ export default {
         this.flipsCards();
       },
       flipsCards() {
-        this.voting = false;
         this.flippingCards = true;
         this.countdown = 3;
 
