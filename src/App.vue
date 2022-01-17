@@ -217,7 +217,10 @@ export default {
   mounted() {
 
     this.deskId = (new URLSearchParams(window.location.search)).get('table_id');
-    console.log({desk: this.deskId});
+
+    if (!this.deskId) {
+      return this.createNewTable();
+    }
 
     this.username = localStorage.getItem("username");
     if (! localStorage.getItem('userid')) {

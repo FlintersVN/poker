@@ -1,11 +1,8 @@
-![Build Status](https://gitlab.com/pages/plain-html/badges/master/build.svg)
+![Build Status](https://gitlab.devsep.com/tuan_da/pockerplanning/badges/master/pipeline.svg)
 
 ---
 
-Example plain HTML site using GitLab Pages.
-
-Learn more about GitLab Pages at https://pages.gitlab.io and the official
-documentation https://docs.gitlab.com/ce/user/project/pages/.
+The project was deployed to [https://tuan_da.pages.devsep.com/pockerplanning](https://tuan_da.pages.devsep.com/pockerplanning)
 
 ---
 
@@ -13,14 +10,40 @@ documentation https://docs.gitlab.com/ce/user/project/pages/.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [GitLab CI](#gitlab-ci)
+- [Technologies](#technologies)
 - [GitLab User or Group Pages](#gitlab-user-or-group-pages)
 - [Did you fork this project?](#did-you-fork-this-project)
 - [Troubleshooting](#troubleshooting)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+c
+## Technologies
 
-## GitLab CI
+- TailwindCSS 3 (https://tailwindcss.com/)
+- VueJS 3 (https://vuejs.org)
+- Bundle parcel (https://parceljs.org)
+- Websocket via Pusher (https://pusher.com)
+- Pusher Auth channels deployed on Heroku (https://github.com/pusher/pusher-channels-auth-example)
+
+> This project was created with minimum tech stack. The early version, It's only contains HTML with a script
+link to Vue & TailwindCSS on CDN. No bundle, no node_modules, no Single File Components (SFC)
+
+
+## Development
+
+```
+node --version
+# v17.2.0
+npm --version
+# 8.1.4
+npm install
+npm run start
+
+# To build code & deploy
+npm run build
+```
+
+## Gitlab CI
 
 This project's static Pages are built by [GitLab CI][ci], following the steps
 defined in [`.gitlab-ci.yml`](.gitlab-ci.yml):
