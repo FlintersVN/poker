@@ -93,6 +93,7 @@
 <script>
 import User from './User.vue';
 import Table from './Table.vue';
+import names from './names';
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
@@ -223,6 +224,12 @@ export default {
     }
 
     this.username = localStorage.getItem("username");
+
+    if (! this.username) {
+      this.username = names.random();
+      localStorage.setItem("username", this.username);
+    }
+
     if (! localStorage.getItem('userid')) {
       localStorage.setItem('userid', Date.now());
     }
