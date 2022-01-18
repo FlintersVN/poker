@@ -1,8 +1,8 @@
-![Build Status](https://gitlab.devsep.com/pocker/pocker.pages.devsep.com/badges/main/pipeline.svg)
+![Build Status](https://gitlab.devsep.com/poker/poker.pages.devsep.com/badges/main/pipeline.svg)
 
 ---
 
-The project was deployed to [https://pocker.pages.devsep.com/](https://pocker.pages.devsep.com/)
+The project was deployed to [https://poker.pages.devsep.com/](https://poker.pages.devsep.com/)
 
 ---
 
