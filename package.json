@@ -12,7 +12,7 @@
     "type": "module",
     "scripts": {
         "start": "parcel",
-        "build": "parcel build --dist-dir public --public-url /pockerplanning"
+        "build": "parcel build --dist-dir public"
     },
     "alias": {
         "vue": "vue/dist/vue.esm-bundler.js"

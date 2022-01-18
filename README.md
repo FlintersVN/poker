@@ -1,8 +1,8 @@
-![Build Status](https://gitlab.devsep.com/tuan_da/pockerplanning/badges/master/pipeline.svg)
+![Build Status](https://gitlab.devsep.com/pocker/pocker.pages.devsep.com/badges/master/pipeline.svg)
 
 ---
 
-The project was deployed to [https://tuan_da.pages.devsep.com/pockerplanning](https://tuan_da.pages.devsep.com/pockerplanning)
+The project was deployed to [https://pocker.pages.devsep.com/](https://pocker.pages.devsep.com/)
 
 ---
 
