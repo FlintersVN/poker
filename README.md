@@ -1,4 +1,4 @@
-![Build Status](https://gitlab.devsep.com/pocker/pocker.pages.devsep.com/badges/master/pipeline.svg)
+![Build Status](https://gitlab.devsep.com/pocker/pocker.pages.devsep.com/badges/main/pipeline.svg)
 
 ---
 
