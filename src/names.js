@@ -1,4 +1,6 @@
 
+import Random from "./random";
+
 const names = [
     "Thỏ ngọc",
     "Sói xám",
@@ -8,7 +10,7 @@ const names = [
     "Hươu cao cổ",
     "Khủng long",
     "Voi còi",
-    "Con gà này",
+    "Con gà lày",
     "Hơi non",
     "Hà mã",
     "Mèo lười",
@@ -68,13 +70,14 @@ const names = [
     "Zoro",
     "Franky",
     "Chopper",
-    "Pikachu"
+    "Pikachu",
+    "Tên tui nè",
+    "Quần cam",
+    "Mr. Robot",
   ];
 
 export default {
     random() {
-        const bytes = new Uint32Array(1);
-        const index = crypto.getRandomValues(bytes)[0] % names.length;
-        return names[index];
+        return Random.element(names);
     }
 }

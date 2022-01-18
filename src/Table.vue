@@ -20,7 +20,7 @@
 
             <span v-show="!showRevealCards" class="text-gray-700">Pick your cards!</span>
 
-            <span v-if="flippingCards" class="font-bold text-blue-500">{{countdown}}</span>
+            <span v-if="flippingCards" class="font-bold text-blue-500">{{counter}}</span>
 
             <button
             v-show="showStartVote"
@@ -42,6 +42,7 @@
 <script>
 
 export default {
+  emits: ['card-flipped', 'card-flipping', 'vote-created', 'vote-creating'],
     props: {
       cardsUp: {
         type: Boolean,
@@ -51,50 +52,42 @@ export default {
         type: Boolean,
         default: false
       },
-      onCardsFlipped: {
-        type: Function
-      },
-      onFlippingCardsRequested: {
-        type: Function
-      },
-      onNewVote: {
-        type: Function
-      },
-      onNewVoteRequested: {
-        type: Function
+      countdown: {
+        type: Number,
+        default: 3
       }
     },
     data() {
-        return {
-            flippingCards: false,
-            showStartVote: false,
-            countdown: 0
-        }
+      return {
+        flippingCards: false,
+        showStartVote: false,
+        counter: 0
+      }
     },
     methods: {
       onNewVoteClicked() {
-        this.onNewVoteRequested();
+        this.$emit('vote-creating');
         this.createNewVote();
+        this.$emit('vote-created');
       },
       createNewVote() {
         this.showStartVote = false;
-        this.onNewVote();
       },
       onFlipsCardsClicked() {
-        this.onFlippingCardsRequested();
+        this.$emit('card-flipping');
         this.flipsCards();
       },
       flipsCards() {
         this.flippingCards = true;
-        this.countdown = 3;
+        this.counter = this.countdown;
 
         let handler = setInterval(() => {
-          this.countdown--;
-          if (!this.countdown) {
+          this.counter--;
+          if (!this.counter) {
             clearInterval(handler);
             this.flippingCards = false;
             this.showStartVote = true;
-            this.onCardsFlipped()
+            this.$emit('card-flipped');
           }
         }, 1000);
       }

@@ -6,21 +6,18 @@
         
         <button class="text-blue-400 pointer" @click="changingName = true">Change name</button> | 
         <button class="text-blue-400 pointer" @click="createNewTable">Create new table</button> |
-        <input type="checkbox" v-model="modeViewOnly"> ViewOnly
+        <input type="checkbox" v-model="modeViewOnly" id="view-mode"> <label for="view-mode">ViewOnly</label>
         </h3>
       </div>
 
-      <div v-if="!username || changingName" class="mt-5">
-        <div>How I call you?</div>
-        <div class="relative inline-block">
-          <input ref="username" type="text" :value="username" class="border-2 p-2 rounded">
-          <button class="absolute bottom-[2px] right-[-44px]" type="button" @click="setUsername">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 stroke-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <ChangeName
+        class="mt-5"
+        v-if="changingName"
+        :current="username"
+        @discard="changingName = false"
+        @changed="rename"
+      >
+      </ChangeName>
     </div>
 
     <div class="lg:w-1/3 md:w-10/12 m-auto min-h-[60vh]">
@@ -28,7 +25,7 @@
         <!-- Top players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <user v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="cardsUp" :name-position="'top'"></user>
+            <user v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="cardsUp" name-position="top"></user>
           </div>
         </div>
 
@@ -41,10 +38,11 @@
         <Table ref="desk" 
           :cardsUp="cardsUp"
           :showRevealCards="showRevealCards"
-          :onNewVoteRequested="onNewVoteRequested"
-          :onCardsFlipped="onCardsUp"
-          :onNewVote="onNewVote"
-          :onFlippingCardsRequested="onFlippingCardsRequested"></Table>
+          @card-flipped="onCardsUp"
+          @card-flipping="onCardFlipping"
+          @vote-created="onNewVoteCreated"
+          @vote-creating="onNewVoteCreating"
+          ></Table>
 
         <!-- Right players -->
         <div class="col-end-7 self-center">
@@ -93,7 +91,9 @@
 <script>
 import User from './User.vue';
 import Table from './Table.vue';
+import ChangeName from './ChangeName.vue';
 import names from './names';
+import Random from './random';
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
@@ -103,7 +103,7 @@ const pusher = new Pusher('bad08686bd5e2c919a55', {
 let channel;
 
 export default {
-  components: {User, Table},
+  components: {User, Table, ChangeName},
   data() {
     return {
       deskId: null,
@@ -151,40 +151,31 @@ export default {
       this.cardsUp = true;
     },
     createNewTable() {
-      const securesGenerate = () => {
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        return btoa(String.fromCharCode(...bytes)).replace(/\W+/, '').substr(0, 16);
-      }
-
-      const weakGenerate = () => btoa(Math.random().toString(36).substring(2)).replace(/\W+/, '')
-
-      const tableId = window.crypto ? securesGenerate() : weakGenerate();
-      window.location.href= window.location.origin + window.location.pathname + "?table_id=" + tableId;
+      window.location.href= window.location.origin + window.location.pathname + "?table_id=" + Random.string();
     },
-    onFlippingCardsRequested() {
+    onCardFlipping() {
       channel.trigger('client-request-flipping-cards', {});
     },
-    setUsername() {
-      let username = this.$refs['username'].value;
+    rename(username) {
+      console.log({username});
       if (username) {
-        this.username = username;
-        const userid = localStorage.getItem('userid')
-        channel.trigger('client-change-name', {id: userid, name: username});
-        this.renameUser(userid, username);
-        this.changingName = false;
-        localStorage.setItem('username', this.username);
+          const id = this.userid;
+          this.username = username;
+          this.renameUser(id, username);
+          channel.trigger('client-ChangeName', {id, name: username});
+          localStorage.setItem('username', this.username);
       }
+      this.changingName = false;
     },
     renameUser(id, name) {
       this.users.find(u => u.id === id).name = name
     },
-    onNewVote() {
+    onNewVoteCreated() {
       this.cardsUp = false;
       this.selected = false;
       this.users.forEach((u) => (u.point = null));
     },
-    onNewVoteRequested() {
+    onNewVoteCreating() {
       channel.trigger('client-new-vote', {});
     },
     pointStateClasses(point) {
@@ -217,9 +208,20 @@ export default {
 
   mounted() {
 
+    // Leaving table
+    window.addEventListener('beforeunload', () => channel.trigger('client-users-leave', this.me));
+
+    // Close change name input when user press escape
+    document.addEventListener('keydown', (event) => {
+      if (event.code === 'Escape' && this.changingName) {
+        this.changingName = false;
+      }
+    });
+
+    // Grab table id from url
     this.deskId = (new URLSearchParams(window.location.search)).get('table_id');
 
-    if (!this.deskId) {
+    if (! this.deskId) {
       return this.createNewTable();
     }
 
@@ -245,17 +247,19 @@ export default {
     });
 
     channel.bind('client-users-join', (data) => {
-      if (this.users.filter(u => u.id === data.id).length === 0) {
+      if (! this.users.find(u => u.id === data.id)) {
         this.users.push({id: data.id, name: data.name, point: null});
       }
+
+      // Send users on local state
       channel.trigger('client-sync-users', this.users);
     });
 
     channel.bind('client-users-leave', (data) => {
-      if (this.users.filter(u => u.id === data.id).length === 0) {
+      // check with current user to prevent a same user close at another tab.
+      if (this.users.find(u => u.id === data.id && u.id != this.userid)) {
         this.users = this.users.filter(u => u.id !== data.id);
       }
-      channel.trigger('client-sync-users', this.users);
     });
 
     channel.bind('client-users-view-only', (state) => {
@@ -264,7 +268,7 @@ export default {
       user.point = null;
     });
 
-    channel.bind('client-change-name', (data) => {
+    channel.bind('client-ChangeName', (data) => {
       this.renameUser(data.id, data.name);
     });
 
@@ -282,7 +286,7 @@ export default {
 
     channel.bind('client-new-vote', () => {
       this.$refs.desk.createNewVote();
-      this.onNewVote();
+      this.onNewVoteCreated();
     });
 
     channel.bind('client-request-flipping-cards', () => {
