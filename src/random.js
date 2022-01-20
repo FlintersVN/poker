@@ -2,10 +2,10 @@
 const securesGenerate = () => {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
-    return btoa(String.fromCharCode(...bytes)).replace(/\W+/, '').substr(0, 16);
+    return btoa(String.fromCharCode(...bytes)).replace(/\W+/g, '');
 }
 
-const weakGenerate = () => btoa(Math.random().toString(36).substring(2)).replace(/\W+/, '');
+const weakGenerate = () => btoa(Math.random().toString(36).substring(2)).replace(/\W+/g, '');
 
 export default class Random {
     static string(len = 16) {

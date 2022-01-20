@@ -100,13 +100,15 @@ const pusher = new Pusher('bad08686bd5e2c919a55', {
   authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
 });
 
+Pusher.log = function () {
+}
+
 let channel;
 
 export default {
   components: {User, Table, ChangeName},
   data() {
     return {
-      deskId: null,
       modeViewOnly: false,
       points: [1, 2, 3, 5, 8, 13],
       cardsUp: false,
@@ -157,7 +159,6 @@ export default {
       channel.trigger('client-request-flipping-cards', {});
     },
     rename(username) {
-      console.log({username});
       if (username) {
           const id = this.userid;
           this.username = username;
@@ -209,7 +210,10 @@ export default {
   mounted() {
 
     // Leaving table
-    window.addEventListener('beforeunload', () => channel.trigger('client-users-leave', this.me));
+    window.addEventListener('beforeunload', (e) => {
+      channel.trigger('client-users-leave', this.me);
+      pusher.unsubscribe(channel.name);
+    });
 
     // Close change name input when user press escape
     document.addEventListener('keydown', (event) => {
