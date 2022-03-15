@@ -41,30 +41,30 @@
   </div>
 </template>
 
-<script>
-export default {
-  props: {
-    user: Object,
-    cardsUp: false,
-    namePosition: {
-      type: String,
-      default: "bottom",
-    },
-  },
-  computed: {
-    userStateClasses() {
-      if (this.user.viewOnly) {
-        return ['border-[3px]', 'border-dashed', 'bg-gray-100'];
-      }
+<script setup lang="ts">
 
-      if (this.user.point !== null && this.cardsUp) {
-        return ["ring-2", "ring-blue-500"];
-      } else if (this.user.point !== null) {
-        return ["bg-purple-400"];
-      }
+import {computed, defineProps, watch} from 'vue'
+import { Player } from '../Player';
 
-      return ["bg-gray-200"];
-    },
-  },
-};
+interface Props {
+  user: Player,
+  cardsUp?: boolean,
+  namePosition?: string
+}
+
+const props = defineProps<Props>()
+
+const userStateClasses = computed(() => {
+  if (props.user.viewOnly) {
+    return ['border-[3px]', 'border-dashed', 'bg-gray-100'];
+  }
+
+  if (props.user.point !== null && props.cardsUp) {
+    return ["ring-2", "ring-blue-500"];
+  } else if (props.user.point !== null) {
+    return ["bg-purple-400"];
+  }
+
+  return ["bg-gray-200"];
+})
 </script>

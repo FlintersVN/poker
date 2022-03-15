@@ -1,20 +1,21 @@
+
 <template>
   <div class="flex flex-col min-h-[90vh]">
     <div class="min-h-[15vh] m-auto pt-5">
-      <div v-if="username">
-        <h3 class="text-lg"><span class="text-gray-600">Hi, </span><b>{{username}}</b> 😊
+      <div v-if="state.username">
+        <h3 class="text-lg"><span class="text-gray-600">Hi, </span><b>{{state.username}}</b> 😊
         
-        <button class="text-blue-400 pointer" @click="changingName = true">Change name</button> | 
+        <button class="text-blue-400 pointer" @click="state.changingName = true">Change name</button> | 
         <button class="text-blue-400 pointer" @click="createNewTable">Create new table</button> |
-        <input type="checkbox" v-model="modeViewOnly" id="view-mode"> <label for="view-mode">ViewOnly</label>
+        <input type="checkbox" v-model="state.modeViewOnly" id="view-mode"> <label for="view-mode">ViewOnly</label>
         </h3>
       </div>
 
       <ChangeName
         class="mt-5"
-        v-if="changingName"
-        :current="username"
-        @discard="changingName = false"
+        v-if="state.changingName"
+        :current="state.username"
+        @discard="state.changingName = false"
         @changed="rename"
       >
       </ChangeName>
@@ -25,18 +26,18 @@
         <!-- Top players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <seat v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="cardsUp" name-position="top"></seat>
+            <Seat v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp" name-position="top"></Seat>
           </div>
         </div>
 
         <!-- Left players -->
         <div class="col-start-1 self-center justify-self-end">
-          <seat v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
+          <Seat v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
         </div>
 
         <!-- Table -->
         <Table ref="desk" 
-          :cardsUp="cardsUp"
+          :cardsUp="state.cardsUp"
           :showRevealCards="showRevealCards"
           @card-flipped="onCardsUp"
           @card-flipping="onCardFlipping"
@@ -46,13 +47,13 @@
 
         <!-- Right players -->
         <div class="col-end-7 self-center">
-          <seat v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
+          <Seat v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
         </div>
 
         <!-- Bottom players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <seat v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
+            <Seat v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
           </div>
         </div>
       </div>
@@ -60,7 +61,7 @@
 
     <!-- Cards -->
     <div class="mt-10 m-auto text-center min-h-[12vh]">
-      <div v-if="cardsUp">
+      <div v-if="state.cardsUp">
         <div 
         class="inline-block ml-3"
         v-for="(voteCount, point) in votedPoints"
@@ -72,7 +73,7 @@
           <div class="text-gray-700 mt-2">{{voteCount}} votes</div>
         </div>
       </div>
-      <div v-if="!this.modeViewOnly && !this.cardsUp">
+      <div v-if="!state.modeViewOnly && !state.cardsUp">
         <h3 class="mb-5">Choose your card 👇</h3>
         <button
           class="font-bold ml-3 min-w-[32pt] py-6 rounded-md ring-blue-500 ring-2"
@@ -88,225 +89,256 @@
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 
 import Seat from './components/Seat.vue';
 import Table from './components/Table.vue';
 import ChangeName from './components/ChangeName.vue';
+import {Player} from './Player'
 import names from './names';
 import Random from './random';
-import Pusher from 'pusher-js';
+import Pusher, { Channel } from 'pusher-js';
+import { ComputedRef, reactive, ref,  } from '@vue/reactivity';
+import { computed, defineComponent, onMounted, watch, inject } from '@vue/runtime-core';
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
   authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
 });
 
-// Pusher.log = function () {
-// }
+let channel: Channel;
 
-let channel;
+const points = [1, 2, 3, 5, 8, 13]
 
-export default {
-  components: {Seat, Table, ChangeName},
-  data() {
-    return {
-      modeViewOnly: false,
-      points: [1, 2, 3, 5, 8, 13],
-      cardsUp: false,
-      username: null,
-      userid: null,
-      changingName: false,
-      users: [],
-      selected: null,
-    };
-  },
-  computed: {
-    votedPoints() {
-      return this.users.reduce((points, user) => {
-        if (user.point) {
-          points[user.point] = 1 + (points[user.point] || 0);
-        }
+interface AppData {
+  modeViewOnly: boolean,
+  points: number[],
+  cardsUp: boolean,
+  username: null | string,
+  userid: null | string,
+  changingName: boolean,
+  users: Player[],
+  selected: null | number,
+  deskId: null | string
+}
 
-        return points;
-      }, {});
-    },
-    me() {
-      return this.users.find(u => u.id === this.userid);
-    },
-    showRevealCards() {
-      return this.users.filter(u => u.point != null).length > 0;
-    },
-    topUsers() {
-      return this.users.filter((u, index) => index % 2 == 1 && index != 3);
-    },
-    rightUsers() {
-      return this.users.length >= 3 ? this.users.slice(2, 3) : [];
-    },
-    bottomUsers() {
-      return this.users.filter((u, index) => index % 2 == 0 && index != 2);
-    },
-    leftUsers() {
-      return this.users.length >= 4 ? this.users.slice(3, 4) : [];
+const state = reactive(<AppData>{
+  modeViewOnly: false,
+  points: [1, 2, 3, 5, 8, 13],
+  cardsUp: false,
+  username: null,
+  userid: null,
+  changingName: false,
+  users: [],
+  selected: null,
+  deskId: null
+});
+
+
+type VotedCount = {[key: number]: number}
+
+const votedPoints = computed(() => {
+  return state.users.reduce((points, user) => {
+    if (user.point) {
+      points[user.point] = 1 + (points[user.point] || 0);
     }
-  },
-  methods: {
-    onCardsUp() {
-      this.cardsUp = true;
-    },
-    createNewTable() {
-      window.location.href= window.location.origin + window.location.pathname + "?table_id=" + Random.string();
-    },
-    onCardFlipping() {
-      channel.trigger('client-request-flipping-cards', {});
-    },
-    rename(username) {
-      if (username) {
-          const id = this.userid;
-          this.username = username;
-          this.renameUser(id, username);
-          channel.trigger('client-ChangeName', {id, name: username});
-          localStorage.setItem('username', this.username);
-      }
-      this.changingName = false;
-    },
-    renameUser(id, name) {
-      this.users.find(u => u.id === id).name = name
-    },
-    onNewVoteCreated() {
-      this.cardsUp = false;
-      this.selected = false;
-      this.users.forEach((u) => (u.point = null));
-    },
-    onNewVoteCreating() {
-      channel.trigger('client-new-vote', {});
-    },
-    pointStateClasses(point: number) {
-      if (this.selected === point) {
-        return ["bg-blue-500", "text-white", "relative", "top-[-4px]"];
-      }
 
-      return ["text-blue-500", "hover:bg-blue-200"];
-    },
+    return points;
+  }, <VotedCount>{})
+})
 
-    toggleSelection(point: number) {
-      if (this.selected === point) {
-        this.selected = null;
-      } else {
-        this.selected = point;
-      }
+const me = computed(() => state.users.find(u => u.id===state.userid)!)
 
-      this.me.point = this.selected;
-      channel.trigger('client-select-point', {id: this.userid, point: this.selected});
-    },
-  },
-  watch: {
-    modeViewOnly(viewOnly) {
-      this.me.viewOnly = viewOnly;
-      this.me.point = null;
-      this.selected = false;
-      channel.trigger('client-users-view-only', {id: this.userid, viewOnly});
-    }
-  },
+const desk = ref()
 
-  mounted() {
+const showRevealCards = computed(() => {
+  return state.users.filter(u => u.point != null).length > 0
+})
+
+const topUsers = computed(() => {
+  return state.users.filter((u, index) => index % 2 == 1 && index != 3);
+})
+
+const rightUsers = computed(() => {
+  return state.users.length >= 3 ? state.users.slice(2, 3) : [];
+})
+
+const bottomUsers = computed(() => {
+ return state.users.filter((u, index) => index % 2 == 0 && index != 2);
+})
+
+const leftUsers = computed(() => {
+  return state.users.length >= 4 ? state.users.slice(3, 4) : [];
+})
+
+function onCardsUp() {
+  state.cardsUp = true
+}
+
+function createNewTable() {
+  window.location.href= window.location.origin + window.location.pathname + "?table_id=" + Random.string();
+}
+
+function onCardFlipping() {
+  channel.trigger('client-request-flipping-cards', {});
+}
+
+function rename(username: string) {
+  if (username) {
+      const id = state.userid;
+      state.username = username;
+      renameUser(id!, username);
+      channel.trigger('client-ChangeName', {id, name: username});
+      localStorage.setItem('username', state.username);
+  }
+  state.changingName = false;
+}
+
+function renameUser(id: string, name: string) {
+  state.users.find(u => u.id === id)!.name = name
+}
+
+function onNewVoteCreated() {
+  state.cardsUp = false;
+  state.selected = null;
+  state.users.forEach((u) => (u.point = null));
+}
+
+function onNewVoteCreating() {
+  channel.trigger('client-new-vote', {});
+}
+
+function pointStateClasses(point: number) {
+  if (state.selected === point) {
+    return ["bg-blue-500", "text-white", "relative", "top-[-4px]"];
+  }
+
+  return ["text-blue-500", "hover:bg-blue-200"];
+}
+
+
+function toggleSelection(point: number) {
+  if (state.selected === point) {
+    state.selected = null;
+  } else {
+    state.selected = point;
+  }
+
+  state.users.find(u => u.id == me.value.id)!.point = state.selected;
+  channel.trigger('client-select-point', {id: state.userid, point: state.selected});
+}
+
+onMounted(() => {
 
     const predefinedPoints = ['1', '2', '3', '5', '8'];
 
     document.addEventListener('keydown', (e) => {
       const isPointAction = predefinedPoints.includes(e.key);
-      if (isPointAction) {
-        this.toggleSelection(parseInt(e.key));
+      if (isPointAction && !state.modeViewOnly) {
+        toggleSelection(parseInt(e.key));
       }
     })
 
     // Leaving table
     window.addEventListener('beforeunload', (e) => {
-      channel.trigger('client-users-leave', this.me);
+      channel.trigger('client-users-leave', {id: me.value.id});
       pusher.unsubscribe(channel.name);
     });
 
     // Close change name input when user press escape
     document.addEventListener('keydown', (event) => {
-      if (event.code === 'Escape' && this.changingName) {
-        this.changingName = false;
+      if (event.code === 'Escape' && state.changingName) {
+        state.changingName = false;
       }
     });
 
     // Grab table id from url
-    this.deskId = (new URLSearchParams(window.location.search)).get('table_id');
+    state.deskId = (new URLSearchParams(window.location.search)).get('table_id');
 
-    if (! this.deskId) {
-      return this.createNewTable();
+    if (! state.deskId) {
+      return createNewTable();
     }
 
-    this.username = localStorage.getItem("username");
+    state.username = localStorage.getItem("username");
 
-    if (! this.username) {
-      this.username = names.random();
-      localStorage.setItem("username", this.username);
+    if (! state.username) {
+      state.username = names.random();
+      localStorage.setItem("username", state.username);
     }
 
     if (! localStorage.getItem('userid')) {
       localStorage.setItem('userid', Date.now().toString());
     }
 
-    const user = {id: localStorage.getItem('userid'), name: this.username, point: null};
-    this.userid = localStorage.getItem('userid');
-    this.users.push(user);
+    const user: Player = {id: localStorage.getItem('userid')!, name: state.username, point: null};
+    state.userid = localStorage.getItem('userid');
+    state.users.push(user);
 
-    channel = pusher.subscribe(`private-${this.deskId}`);
+    channel = pusher.subscribe(`private-${state.deskId}`);
 
     channel.bind('pusher:subscription_succeeded', () => {
       channel.trigger('client-users-join', user);
     });
 
-    channel.bind('client-users-join', (data) => {
-      if (! this.users.find(u => u.id === data.id)) {
-        this.users.push({id: data.id, name: data.name, point: null});
+    channel.bind('client-users-join', (data: Player) => {
+      if (! state.users.find(u => u.id === data.id)) {
+        state.users.push({id: data.id, name: data.name, point: null});
       }
 
       // Send users on local state
-      channel.trigger('client-sync-users', this.users);
+      channel.trigger('client-sync-users', state.users);
     });
 
-    channel.bind('client-users-leave', (data) => {
+    channel.bind('client-users-leave', (data: Player) => {
       // check with current user to prevent a same user close at another tab.
-      if (this.users.find(u => u.id === data.id && u.id != this.userid)) {
-        this.users = this.users.filter(u => u.id !== data.id);
+      if (state.users.find(u => u.id === data.id && u.id != state.userid)) {
+        state.users = state.users.filter(u => u.id !== data.id);
       }
     });
 
-    channel.bind('client-users-view-only', (state) => {
-      const user = this.users.find(u => u.id === state.id);
-      user.viewOnly = state.viewOnly;
+    channel.bind('client-users-view-only', (player: Player) => {
+      const user = state.users.find(u => u.id === player.id)!;
+      user.viewOnly = player.viewOnly;
       user.point = null;
     });
 
-    channel.bind('client-ChangeName', (data) => {
-      this.renameUser(data.id, data.name);
+    channel.bind('client-ChangeName', (data: Player) => {
+      renameUser(data.id, data.name);
     });
 
-    channel.bind('client-select-point', (data) => {
-      this.users.find(u => u.id === data.id).point = data.point;
+    channel.bind('client-select-point', (data: Player) => {
+      state.users.find(u => u.id === data.id)!.point = data.point;
     });
 
-    channel.bind('client-sync-users', (users) => {
-      this.users = users;
+    channel.bind('client-sync-users', (users: Player[]) => {
+      state.users = users;
 
-      if (this.me.viewOnly) {
-        this.modeViewOnly = true;
+      if (me.value.viewOnly) {
+        state.modeViewOnly = true;
       }
     });
 
     channel.bind('client-new-vote', () => {
-      this.$refs.desk.createNewVote();
-      this.onNewVoteCreated();
+      desk.value.createNewVote();
+      onNewVoteCreated();
     });
 
     channel.bind('client-request-flipping-cards', () => {
-      this.$refs.desk.flipsCards();
+      const {flipsCards} = inject('table')!
+
+      console.log({flipsCards});
+      flipsCards();
+      // desk.value.flipsCards();
     });
+})
+
+watch(
+  () => state.modeViewOnly,
+  (viewOnly) => {
+    me.value.viewOnly = viewOnly;
+    me.value.point = null;
+    state.selected = null;
+    channel.trigger('client-users-view-only', {id: state.userid, viewOnly});
   }
-};
+)
 </script>
