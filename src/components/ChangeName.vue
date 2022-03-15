@@ -19,7 +19,7 @@
 
 <script>
 
-import names from './names'
+import names from '../names'
 
 export default {
     emits: ['changed', 'discard'],

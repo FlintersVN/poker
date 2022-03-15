@@ -88,20 +88,22 @@
   </div>
 </template>
 
-<script>
-import User from './User.vue';
-import Table from './Table.vue';
-import ChangeName from './ChangeName.vue';
+<script lang="ts">
+
+import User from './components/User.vue';
+import Table from './components/Table.vue';
+import ChangeName from './components/ChangeName.vue';
 import names from './names';
 import Random from './random';
+import Pusher from 'pusher-js';
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
   authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
 });
 
-Pusher.log = function () {
-}
+// Pusher.log = function () {
+// }
 
 let channel;
 
@@ -179,7 +181,7 @@ export default {
     onNewVoteCreating() {
       channel.trigger('client-new-vote', {});
     },
-    pointStateClasses(point) {
+    pointStateClasses(point: number) {
       if (this.selected === point) {
         return ["bg-blue-500", "text-white", "relative", "top-[-4px]"];
       }
@@ -187,7 +189,7 @@ export default {
       return ["text-blue-500", "hover:bg-blue-200"];
     },
 
-    toggleSelection(point) {
+    toggleSelection(point: number) {
       if (this.selected === point) {
         this.selected = null;
       } else {
@@ -208,6 +210,15 @@ export default {
   },
 
   mounted() {
+
+    const predefinedPoints = ['1', '2', '3', '5', '8'];
+
+    document.addEventListener('keydown', (e) => {
+      const isPointAction = predefinedPoints.includes(e.key);
+      if (isPointAction) {
+        this.toggleSelection(parseInt(e.key));
+      }
+    })
 
     // Leaving table
     window.addEventListener('beforeunload', (e) => {
@@ -237,7 +248,7 @@ export default {
     }
 
     if (! localStorage.getItem('userid')) {
-      localStorage.setItem('userid', Date.now());
+      localStorage.setItem('userid', Date.now().toString());
     }
 
     const user = {id: localStorage.getItem('userid'), name: this.username, point: null};
