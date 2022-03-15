@@ -25,13 +25,13 @@
         <!-- Top players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <user v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="cardsUp" name-position="top"></user>
+            <seat v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="cardsUp" name-position="top"></seat>
           </div>
         </div>
 
         <!-- Left players -->
         <div class="col-start-1 self-center justify-self-end">
-          <user v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></user>
+          <seat v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
         </div>
 
         <!-- Table -->
@@ -46,13 +46,13 @@
 
         <!-- Right players -->
         <div class="col-end-7 self-center">
-          <user v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></user>
+          <seat v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
         </div>
 
         <!-- Bottom players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <user v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></user>
+            <seat v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="cardsUp"></seat>
           </div>
         </div>
       </div>
@@ -90,7 +90,7 @@
 
 <script lang="ts">
 
-import User from './components/User.vue';
+import Seat from './components/Seat.vue';
 import Table from './components/Table.vue';
 import ChangeName from './components/ChangeName.vue';
 import names from './names';
@@ -108,7 +108,7 @@ const pusher = new Pusher('bad08686bd5e2c919a55', {
 let channel;
 
 export default {
-  components: {User, Table, ChangeName},
+  components: {Seat, Table, ChangeName},
   data() {
     return {
       modeViewOnly: false,
