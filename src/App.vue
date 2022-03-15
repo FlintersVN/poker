@@ -102,9 +102,6 @@ const pusher = new Pusher('bad08686bd5e2c919a55', {
   authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
 });
 
-// Pusher.log = function () {
-// }
-
 let channel;
 
 export default {
@@ -211,15 +208,6 @@ export default {
 
   mounted() {
 
-    const predefinedPoints = ['1', '2', '3', '5', '8'];
-
-    document.addEventListener('keydown', (e) => {
-      const isPointAction = predefinedPoints.includes(e.key);
-      if (isPointAction) {
-        this.toggleSelection(parseInt(e.key));
-      }
-    })
-
     // Leaving table
     window.addEventListener('beforeunload', (e) => {
       channel.trigger('client-users-leave', this.me);
@@ -227,9 +215,15 @@ export default {
     });
 
     // Close change name input when user press escape
+    const predefinedPoints = ['1', '2', '3', '5', '8'];
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Escape' && this.changingName) {
         this.changingName = false;
+      }
+
+      const isPointAction = predefinedPoints.includes(event.key);
+      if (isPointAction && !this.cardsUp && !this.me.viewOnly) {
+        this.toggleSelection(parseInt(event.key));
       }
     });
 
