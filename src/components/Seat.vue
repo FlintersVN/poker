@@ -1,8 +1,8 @@
 
 <template>
   <div class="inline-block text-center">
-    <div v-if="namePosition === 'top'" class="mb-2 font-bold text-gray-700">
-      {{ user.name }}
+    <div v-if="props.namePosition === 'top'" class="mb-2 font-bold text-gray-700">
+      {{ props.user.name }}
     </div>
     <div
       class="
@@ -16,9 +16,9 @@
         font-bold
         text-blue-500
       "
-      v-bind:class="userStateClasses"
+      v-bind:class="cardClasses"
     >
-      <template v-if="user.viewOnly">
+      <template v-if="props.user.viewOnly">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           class="h-5 w-5 inline-block fill-gray-400"
@@ -33,28 +33,28 @@
           />
         </svg>
       </template>
-      <template v-else-if="!user.viewOnly && cardsUp">{{ user.point }}</template>
+      <template v-else-if="!props.user.viewOnly && props.cardsUp">{{ props.user.point }}</template>
     </div>
-    <div v-if="namePosition === 'bottom'" class="mt-2 font-bold text-gray-700">
-      {{ user.name }}
+    <div v-if="props.namePosition === 'bottom'" class="mt-2 font-bold text-gray-700">
+      {{ props.user.name }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 
-import {computed, defineProps, watch} from 'vue'
+import {computed, defineProps} from 'vue'
 import { Player } from '../Player';
 
 interface Props {
-  user: Player,
-  cardsUp?: boolean,
+  user: Player
+  cardsUp: boolean
   namePosition?: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {cardsUp: false, namePosition: "bottom"})
 
-const userStateClasses = computed(() => {
+const cardClasses = computed(() => {
   if (props.user.viewOnly) {
     return ['border-[3px]', 'border-dashed', 'bg-gray-100'];
   }

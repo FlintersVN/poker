@@ -114,7 +114,7 @@ interface AppData {
   modeViewOnly: boolean,
   points: number[],
   cardsUp: boolean,
-  username: null | string,
+  username: string,
   userid: null | string,
   changingName: boolean,
   users: Player[],
@@ -126,7 +126,7 @@ const state = reactive(<AppData>{
   modeViewOnly: false,
   points: [1, 2, 3, 5, 8, 13],
   cardsUp: false,
-  username: null,
+  username: '',
   userid: null,
   changingName: false,
   users: [],
@@ -147,7 +147,7 @@ const votedPoints = computed(() => {
   }, <VotedCount>{})
 })
 
-const me = computed(() => state.users.find(u => u.id===state.userid)!)
+const me: ComputedRef<Player> = computed(() => state.users.find(u => u.id===state.userid)!)
 
 const desk = ref()
 
@@ -234,7 +234,7 @@ onMounted(() => {
 
     document.addEventListener('keydown', (e) => {
       const isPointAction = predefinedPoints.includes(e.key);
-      if (isPointAction && !state.modeViewOnly) {
+      if (isPointAction && !state.modeViewOnly && !state.cardsUp) {
         toggleSelection(parseInt(e.key));
       }
     })
@@ -259,7 +259,7 @@ onMounted(() => {
       return createNewTable();
     }
 
-    state.username = localStorage.getItem("username");
+    state.username = localStorage.getItem("username") || '';
 
     if (! state.username) {
       state.username = names.random();
@@ -270,7 +270,7 @@ onMounted(() => {
       localStorage.setItem('userid', Date.now().toString());
     }
 
-    const user: Player = {id: localStorage.getItem('userid')!, name: state.username, point: null};
+    const user = <Player>{id: localStorage.getItem('userid')!, name: state.username, point: null};
     state.userid = localStorage.getItem('userid');
     state.users.push(user);
 
@@ -282,7 +282,8 @@ onMounted(() => {
 
     channel.bind('client-users-join', (data: Player) => {
       if (! state.users.find(u => u.id === data.id)) {
-        state.users.push({id: data.id, name: data.name, point: null});
+        // {id: data.id, name: data.name, point: null}
+        state.users.push(data);
       }
 
       // Send users on local state
@@ -324,11 +325,7 @@ onMounted(() => {
     });
 
     channel.bind('client-request-flipping-cards', () => {
-      const {flipsCards} = inject('table')!
-
-      console.log({flipsCards});
-      flipsCards();
-      // desk.value.flipsCards();
+      desk.value.flipsCards();
     });
 })
 

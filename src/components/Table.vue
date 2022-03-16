@@ -41,11 +41,10 @@
 
 <script setup lang="ts">
 
-import { defineEmits, provide, reactive } from 'vue';
+import { defineEmits, reactive } from 'vue';
+
 
 const $emit = defineEmits(['card-flipped', 'card-flipping', 'vote-created', 'vote-creating'])
-
-const defaultCountdown = 3
 
 interface Props {
   cardsUp: Boolean
@@ -53,7 +52,7 @@ interface Props {
   countdown?: number
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {countdown: 3})
 
 const state = reactive({
   flippingCards: false,
@@ -78,7 +77,7 @@ function onFlipsCardsClicked() {
 
 function flipsCards() {
   state.flippingCards = true;
-  state.counter = props.countdown || defaultCountdown;
+  state.counter = props.countdown;
 
   let handler = setInterval(() => {
     state.counter--;
@@ -91,58 +90,6 @@ function flipsCards() {
   }, 1000);
 }
 
-provide('table', {flipsCards});
+defineExpose({flipsCards, createNewVote})
 
-// export default {
-//   // emits: ['card-flipped', 'card-flipping', 'vote-created', 'vote-creating'],
-//     // props: {
-//     //   cardsUp: {
-//     //     type: Boolean,
-//     //     default: false
-//     //   },
-//     //   showRevealCards: {
-//     //     type: Boolean,
-//     //     default: false
-//     //   },
-//     //   countdown: {
-//     //     type: Number,
-//     //     default: 3
-//     //   }
-//     // },
-//     // data() {
-//     //   return {
-//     //     flippingCards: false,
-//     //     showStartVote: false,
-//     //     counter: 0
-//     //   }
-//     // },
-//     methods: {
-//       // onNewVoteClicked() {
-//       //   this.$emit('vote-creating');
-//       //   this.createNewVote();
-//       //   this.$emit('vote-created');
-//       // },
-//       // createNewVote() {
-//       //   this.showStartVote = false;
-//       // },
-//       // onFlipsCardsClicked() {
-//       //   this.$emit('card-flipping');
-//       //   this.flipsCards();
-//       // },
-//       // flipsCards() {
-//       //   this.flippingCards = true;
-//       //   this.counter = this.countdown || 3;
-
-//       //   let handler = setInterval(() => {
-//       //     this.counter--;
-//       //     if (!this.counter) {
-//       //       clearInterval(handler);
-//       //       this.flippingCards = false;
-//       //       this.showStartVote = true;
-//       //       this.$emit('card-flipped');
-//       //     }
-//       //   }, 1000);
-//       // }
-//     }
-// }
 </script>
