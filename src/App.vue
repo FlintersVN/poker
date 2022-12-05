@@ -99,7 +99,7 @@ import Pusher from 'pusher-js';
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
-  authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
+  authEndpoint: 'https://poker.dotuan.dev/pusher/auth',
 });
 
 let channel;
