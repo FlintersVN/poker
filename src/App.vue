@@ -96,7 +96,7 @@ import Table from './components/Table.vue';
 import ChangeName from './components/ChangeName.vue';
 import {Player} from './Player'
 import names from './names';
-import Random from './random';
+import Random from './Random';
 import Pusher, { Channel } from 'pusher-js';
 import { ComputedRef, reactive, ref,  } from '@vue/reactivity';
 import { computed, defineComponent, onMounted, watch, inject } from '@vue/runtime-core';
