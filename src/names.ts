@@ -1,5 +1,5 @@
 
-import Random from "./random";
+import Random from "./Random";
 
 const names = [
     "Thỏ ngọc",

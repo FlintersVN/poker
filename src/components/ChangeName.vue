@@ -6,8 +6,8 @@
         </div>
         
         <div class="inline-flex">
-            <input v-model="value" type="text" class="border-2 p-2 rounded">
-            <button type="button" @click="$emit('changed', this.value)" class="mx-1" title="Save changes">
+            <input v-model="state.name" type="text" class="border-2 p-2 rounded">
+            <button type="button" @click="$emit('changed', state.name)" class="mx-1" title="Save changes">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 stroke-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -17,29 +17,24 @@
     </div>
 </template>
 
-<script>
+<script setup lang="ts">
 
 import names from '../names'
+import {reactive} from 'vue'
 
-export default {
-    emits: ['changed', 'discard'],
-    props: {
-        current: {
-            type: String
-        },
-    },
-    data() {
-        return {
-            value: ""
-        }
-    },
-    methods: {
-        random() {
-            this.value = names.random();
-        }
-    },
-    created() {
-        this.value = this.current;
+const $emit = defineEmits(['changed', 'discard'])
+
+const props = defineProps({
+    current: {
+        type: String,
+        required: true
     }
+})
+
+const state = reactive({name: props.current})
+
+function random() {
+    state.name = names.random()
 }
+
 </script>

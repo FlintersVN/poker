@@ -12,14 +12,14 @@ export default class Random {
         const generate = window.crypto ? securesGenerate : weakGenerate;
 
         let result = "";
-        while (result < len) {
+        while (result.length < len) {
             result += generate();
         }
 
         return result.substring(0, len);
     }
 
-    static element(items) {
+    static element<T>(items: T[]): T {
         const bytes = new Uint32Array(1);
         const index = crypto.getRandomValues(bytes)[0] % items.length;
         return items[index];

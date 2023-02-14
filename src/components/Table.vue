@@ -5,7 +5,7 @@
         >
         <div class="self-center m-auto">
             <button
-            v-show="showRevealCards && !cardsUp && !flippingCards"
+            v-show="showRevealCards && !cardsUp && !state.flippingCards"
             class="
                 bg-blue-500
                 hover:bg-blue-400
@@ -20,10 +20,10 @@
 
             <span v-show="!showRevealCards" class="text-gray-700">Pick your cards!</span>
 
-            <span v-if="flippingCards" class="font-bold text-blue-500">{{counter}}</span>
+            <span v-if="state.flippingCards" class="font-bold text-blue-500">{{state.counter}}</span>
 
             <button
-            v-show="showStartVote"
+            v-show="state.showStartVote"
             @click="onNewVoteClicked"
             class="
                 font-bold
@@ -39,58 +39,57 @@
     </div>
 </template>
 
-<script>
+<script setup lang="ts">
 
-export default {
-  emits: ['card-flipped', 'card-flipping', 'vote-created', 'vote-creating'],
-    props: {
-      cardsUp: {
-        type: Boolean,
-        default: false
-      },
-      showRevealCards: {
-        type: Boolean,
-        default: false
-      },
-      countdown: {
-        type: Number,
-        default: 3
-      }
-    },
-    data() {
-      return {
-        flippingCards: false,
-        showStartVote: false,
-        counter: 0
-      }
-    },
-    methods: {
-      onNewVoteClicked() {
-        this.$emit('vote-creating');
-        this.createNewVote();
-        this.$emit('vote-created');
-      },
-      createNewVote() {
-        this.showStartVote = false;
-      },
-      onFlipsCardsClicked() {
-        this.$emit('card-flipping');
-        this.flipsCards();
-      },
-      flipsCards() {
-        this.flippingCards = true;
-        this.counter = this.countdown;
+import { defineEmits, reactive } from 'vue';
 
-        let handler = setInterval(() => {
-          this.counter--;
-          if (!this.counter) {
-            clearInterval(handler);
-            this.flippingCards = false;
-            this.showStartVote = true;
-            this.$emit('card-flipped');
-          }
-        }, 1000);
-      }
-    }
+
+const $emit = defineEmits(['card-flipped', 'card-flipping', 'vote-created', 'vote-creating'])
+
+interface Props {
+  cardsUp: Boolean
+  showRevealCards: Boolean
+  countdown?: number
 }
+
+const props = withDefaults(defineProps<Props>(), {countdown: 3})
+
+const state = reactive({
+  flippingCards: false,
+  showStartVote: false,
+  counter: 0
+})
+
+function onNewVoteClicked() {
+  $emit('vote-creating');
+  createNewVote();
+  $emit('vote-created');
+}
+
+function createNewVote() {
+  state.showStartVote = false;
+}
+
+function onFlipsCardsClicked() {
+  $emit('card-flipping');
+  flipsCards();
+}
+
+function flipsCards() {
+  state.flippingCards = true;
+  state.counter = props.countdown;
+
+  let handler = setInterval(() => {
+    state.counter--;
+    if (!state.counter) {
+      clearInterval(handler);
+      state.flippingCards = false;
+      state.showStartVote = true;
+      $emit('card-flipped');
+    }
+  }, 1000);
+}
+
+defineExpose({flipsCards, createNewVote})
+
 </script>
