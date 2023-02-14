@@ -103,7 +103,7 @@ import { computed, defineComponent, onMounted, watch, inject } from '@vue/runtim
 
 const pusher = new Pusher('bad08686bd5e2c919a55', {
   cluster: 'ap1',
-  authEndpoint: 'https://pockersv.herokuapp.com/pusher/auth',
+  authEndpoint: 'https://poker.dotuan.dev/pusher/auth',
 });
 
 let channel: Channel;
@@ -229,16 +229,6 @@ function toggleSelection(point: number) {
 }
 
 onMounted(() => {
-
-    const predefinedPoints = ['1', '2', '3', '5', '8'];
-
-    document.addEventListener('keydown', (e) => {
-      const isPointAction = predefinedPoints.includes(e.key);
-      if (isPointAction && !state.modeViewOnly && !state.cardsUp) {
-        toggleSelection(parseInt(e.key));
-      }
-    })
-
     // Leaving table
     window.addEventListener('beforeunload', (e) => {
       channel.trigger('client-users-leave', {id: me.value.id});
@@ -246,9 +236,15 @@ onMounted(() => {
     });
 
     // Close change name input when user press escape
+    const predefinedPoints = ['1', '2', '3', '5', '8'];
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Escape' && state.changingName) {
         state.changingName = false;
+      }
+
+      const isPointAction = predefinedPoints.includes(event.key);
+      if (isPointAction && !state.modeViewOnly && !state.cardsUp) {
+        toggleSelection(parseInt(event.key));
       }
     });
 
@@ -339,3 +335,4 @@ watch(
   }
 )
 </script>
+
