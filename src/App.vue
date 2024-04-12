@@ -97,16 +97,15 @@ import ChangeName from './components/ChangeName.vue';
 import {Player} from './Player'
 import names from './names';
 import Random from './Random';
-import Pusher, { Channel } from 'pusher-js';
 import { ComputedRef, reactive, ref,  } from '@vue/reactivity';
-import { computed, defineComponent, onMounted, watch, inject } from '@vue/runtime-core';
+import { computed, onMounted, watch } from '@vue/runtime-core';
 
-const pusher = new Pusher('bad08686bd5e2c919a55', {
-  cluster: 'ap1',
-  authEndpoint: 'https://poker.dotuan.dev/pusher/auth',
-});
+import { createClient, RealtimeChannel } from '@supabase/supabase-js'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-let channel: Channel;
+let channel: RealtimeChannel;
 
 const points = [1, 2, 3, 5, 8, 13]
 
@@ -180,7 +179,8 @@ function createNewTable() {
 }
 
 function onCardFlipping() {
-  channel.trigger('client-request-flipping-cards', {});
+  channel.send({type: "broadcast", event: "client-request-flipping-cards"})
+  // channel.trigger('client-request-flipping-cards', {});
 }
 
 function rename(username: string) {
@@ -188,7 +188,8 @@ function rename(username: string) {
       const id = state.userid;
       state.username = username;
       renameUser(id!, username);
-      channel.trigger('client-ChangeName', {id, name: username});
+      // channel.trigger('client-ChangeName', {id, name: username});
+      channel.send({type: "broadcast", event: "client-ChangeName", payload: {id, name: username}})
       localStorage.setItem('username', state.username);
   }
   state.changingName = false;
@@ -205,7 +206,8 @@ function onNewVoteCreated() {
 }
 
 function onNewVoteCreating() {
-  channel.trigger('client-new-vote', {});
+  channel.send({type: "broadcast", event: "client-new-vote"})
+  // channel.trigger('client-new-vote', {});
 }
 
 function pointStateClasses(point: number) {
@@ -225,14 +227,17 @@ function toggleSelection(point: number) {
   }
 
   state.users.find(u => u.id == me.value.id)!.point = state.selected;
-  channel.trigger('client-select-point', {id: state.userid, point: state.selected});
+  channel.send({type: "broadcast", event: "client-select-point", payload: {id: state.userid, point: state.selected}})
+  // channel.trigger('client-select-point', {id: state.userid, point: state.selected});
 }
 
 onMounted(() => {
     // Leaving table
-    window.addEventListener('beforeunload', (e) => {
-      channel.trigger('client-users-leave', {id: me.value.id});
-      pusher.unsubscribe(channel.name);
+    window.addEventListener('beforeunload', async (e) => {
+      // channel.trigger('client-users-leave', {id: me.value.id});
+      // pusher.unsubscribe(channel.name);
+
+      await channel.untrack();
     });
 
     // Close change name input when user press escape
@@ -266,63 +271,83 @@ onMounted(() => {
       localStorage.setItem('userid', Date.now().toString());
     }
 
-    const user = <Player>{id: localStorage.getItem('userid')!, name: state.username, point: null};
+    state.modeViewOnly = localStorage.getItem('viewOnly') == "true";
+    const user = <Player>{id: localStorage.getItem('userid')!, name: state.username, point: null, viewOnly: state.modeViewOnly};
     state.userid = localStorage.getItem('userid');
     state.users.push(user);
 
-    channel = pusher.subscribe(`private-${state.deskId}`);
-
-    channel.bind('pusher:subscription_succeeded', () => {
-      channel.trigger('client-users-join', user);
+    channel = supabase.channel(`desk-${state.deskId}`, {
+      config: {
+        presence: {
+          key: user.id
+        }
+      }
     });
+    channel
+    // .on('presence', { event: 'sync' }, () => {
 
-    channel.bind('client-users-join', (data: Player) => {
+    
+    //   const newState = table.presenceState()
+
+    //   state.users = Object.values(newState).map((item) => {
+
+    //     const user: Player = item[0] as unknown as Player;
+
+    //     return user;
+    //   })
+
+    //   // state.users = newState.map(() => {
+
+    //   // });
+    //   console.log('sync', newState)
+    // })
+    .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      const data = newPresences[0];
       if (! state.users.find(u => u.id === data.id)) {
-        // {id: data.id, name: data.name, point: null}
-        state.users.push(data);
+        state.users.push({id: data.id, name: data.name, point: null, viewOnly: data.viewOnly || false});
       }
-
-      // Send users on local state
-      channel.trigger('client-sync-users', state.users);
-    });
-
-    channel.bind('client-users-leave', (data: Player) => {
+      console.log('join', key, newPresences)
+    })
+    .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      // console.log('leave', key, leftPresences)
       // check with current user to prevent a same user close at another tab.
-      if (state.users.find(u => u.id === data.id && u.id != state.userid)) {
-        state.users = state.users.filter(u => u.id !== data.id);
+      if (state.users.find(u => u.id === key && u.id != state.userid)) {
+        state.users = state.users.filter(u => u.id !== key);
       }
-    });
+    })
 
-    channel.bind('client-users-view-only', (player: Player) => {
-      const user = state.users.find(u => u.id === player.id)!;
-      user.viewOnly = player.viewOnly;
+    channel.on('broadcast', { event: "client-users-view-only" }, event => {
+      const changeUser = event.payload;
+      const user = state.users.find(u => u.id === changeUser.id)!;
+      user.viewOnly = changeUser.viewOnly;
       user.point = null;
-    });
+    })
 
-    channel.bind('client-ChangeName', (data: Player) => {
-      renameUser(data.id, data.name);
-    });
+    channel.on("broadcast", { event: "client-ChangeName" }, (event) => {
+      const user = event.payload;
+      renameUser(user.id, user.name);
+    })
 
-    channel.bind('client-select-point', (data: Player) => {
+    channel.on('broadcast', {event: 'client-select-point'}, (event) => {
+      const data = event.payload;
       state.users.find(u => u.id === data.id)!.point = data.point;
     });
 
-    channel.bind('client-sync-users', (users: Player[]) => {
-      state.users = users;
-
-      if (me.value.viewOnly) {
-        state.modeViewOnly = true;
-      }
-    });
-
-    channel.bind('client-new-vote', () => {
+    channel.on('broadcast', { event: "client-new-vote" }, () => {
       desk.value.createNewVote();
       onNewVoteCreated();
-    });
+    })
 
-    channel.bind('client-request-flipping-cards', () => {
+    channel.on('broadcast', { event: "client-request-flipping-cards" }, () => {
       desk.value.flipsCards();
-    });
+    })
+
+    channel.subscribe(async (status) => {
+      if (status !== 'SUBSCRIBED') { return }
+
+      const presenceTrackStatus = await channel.track(user)
+      console.log(presenceTrackStatus)
+    })
 })
 
 watch(
@@ -331,8 +356,20 @@ watch(
     me.value.viewOnly = viewOnly;
     me.value.point = null;
     state.selected = null;
-    channel.trigger('client-users-view-only', {id: state.userid, viewOnly});
+    localStorage.setItem("viewOnly", viewOnly ? "true" : "false");
+    channel.send({ type: "broadcast", event: "client-users-view-only", payload: {id: state.userid, viewOnly}})
+    // channel.trigger('client-users-view-only', {id: state.userid, viewOnly});
   }
 )
+
+if (import.meta.hot) {
+  const hot = import.meta.hot
+
+  // Untrack on vite HMR
+  hot.on('vite:beforeUpdate', async () => {
+    await channel.untrack();
+  })
+}
+
 </script>
 
