@@ -18,7 +18,7 @@
             @click="onFlipsCardsClicked"
             >Lật bài</button>
 
-            <span v-show="!showRevealCards" class="text-gray-700">Pick your cards!</span>
+            <span v-show="!showRevealCards && !state.showStartVote && !state.flippingCards" class="text-gray-700">Pick your cards!</span>
 
             <span v-if="state.flippingCards" class="font-bold text-blue-500">{{state.counter}}</span>
 
@@ -75,13 +75,25 @@ function onFlipsCardsClicked() {
   flipsCards();
 }
 
-function flipsCards() {
+function flipsCards(countdown: number = props.countdown) {
+
+  if (countdown < 0) {
+    state.flippingCards = false;
+    state.showStartVote = true;
+    $emit('card-flipped');
+    return;
+  }
+
+  if (state.flippingCards) {
+    return;
+  }
+
   state.flippingCards = true;
-  state.counter = props.countdown;
+  state.counter = countdown;
 
   let handler = setInterval(() => {
     state.counter--;
-    if (!state.counter) {
+    if (state.counter <= 0) {
       clearInterval(handler);
       state.flippingCards = false;
       state.showStartVote = true;

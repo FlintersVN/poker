@@ -2,20 +2,20 @@
 <template>
   <div class="flex flex-col min-h-[90vh]">
     <div class="min-h-[15vh] m-auto pt-5">
-      <div v-if="state.username">
-        <h3 class="text-lg"><span class="text-gray-600">Hi, </span><b>{{state.username}}</b> 😊
+      <div v-if="appState.username">
+        <h3 class="text-lg"><span class="text-gray-600">Hi, </span><b>{{appState.username}}</b> 😊
         
-        <button class="text-blue-400 pointer" @click="state.changingName = true">Change name</button> | 
-        <button class="text-blue-400 pointer" @click="createNewTable">Create new table</button> |
-        <input type="checkbox" v-model="state.modeViewOnly" id="view-mode"> <label for="view-mode">ViewOnly</label>
+        <button class="text-blue-400 pointer" @click="appState.changingName = true">Change name</button> | 
+        <button class="text-blue-400 pointer" @click="createNewTable(me)">Create new table</button> |
+        <input type="checkbox" v-model="appState.viewOnly" id="view-mode"> <label for="view-mode">ViewOnly</label>
         </h3>
       </div>
 
       <ChangeName
         class="mt-5"
-        v-if="state.changingName"
-        :current="state.username"
-        @discard="state.changingName = false"
+        v-if="appState.changingName"
+        :current="appState.username"
+        @discard="appState.changingName = false"
         @changed="rename"
       >
       </ChangeName>
@@ -26,34 +26,35 @@
         <!-- Top players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <Seat v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp" name-position="top"></Seat>
+            <Seat v-for="(user, index) in topUsers" v-bind:key="index" :user="user" :cards-up="appState.state == 'revealing'" name-position="top"></Seat>
           </div>
         </div>
 
         <!-- Left players -->
         <div class="col-start-1 self-center justify-self-end">
-          <Seat v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
+          <Seat v-for="(user, index) in leftUsers" v-bind:key="index" :user="user" :cards-up="appState.state == 'revealing'"></Seat>
         </div>
 
         <!-- Table -->
         <Table ref="desk" 
-          :cardsUp="state.cardsUp"
+          :cardsUp="appState.state == 'revealing'"
+          :countdown="3"
           :showRevealCards="showRevealCards"
           @card-flipped="onCardsUp"
           @card-flipping="onCardFlipping"
           @vote-created="onNewVoteCreated"
-          @vote-creating="onNewVoteCreating"
+          @vote-creating="createNewVote"
           ></Table>
 
         <!-- Right players -->
         <div class="col-end-7 self-center">
-          <Seat v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
+          <Seat v-for="(user, index) in rightUsers" v-bind:key="index" :user="user" :cards-up="appState.state == 'revealing'"></Seat>
         </div>
 
         <!-- Bottom players -->
         <div class="col-start-2 col-span-4">
           <div class="flex justify-around">
-            <Seat v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="state.cardsUp"></Seat>
+            <Seat v-for="(user, index) in bottomUsers" v-bind:key="index" :user="user" :cards-up="appState.state == 'revealing'"></Seat>
           </div>
         </div>
       </div>
@@ -61,7 +62,7 @@
 
     <!-- Cards -->
     <div class="mt-10 m-auto text-center min-h-[12vh]">
-      <div v-if="state.cardsUp">
+      <div v-if="appState.state == 'revealing'">
         <div 
         class="inline-block ml-3"
         v-for="(voteCount, point) in votedPoints"
@@ -73,7 +74,7 @@
           <div class="text-gray-700 mt-2">{{voteCount}} votes</div>
         </div>
       </div>
-      <div v-if="!state.modeViewOnly && !state.cardsUp">
+      <div v-if="!appState.viewOnly && appState.state == 'voting'">
         <h3 class="mb-5">Choose your card 👇</h3>
         <button
           class="font-bold ml-3 min-w-[32pt] py-6 rounded-md ring-blue-500 ring-2"
@@ -97,33 +98,59 @@ import ChangeName from './components/ChangeName.vue';
 import {Player} from './Player'
 import names from './names';
 import Random from './Random';
-import Pusher, { Channel } from 'pusher-js';
-import { ComputedRef, reactive, ref,  } from '@vue/reactivity';
-import { computed, defineComponent, onMounted, watch, inject } from '@vue/runtime-core';
+import { ComputedRef, reactive, ref} from '@vue/reactivity';
+import { computed, onMounted, watch } from '@vue/runtime-core';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, DocumentReference, deleteDoc, writeBatch } from "firebase/firestore";
 
-const pusher = new Pusher('bad08686bd5e2c919a55', {
-  cluster: 'ap1',
-  authEndpoint: 'https://poker.dotuan.dev/pusher/auth',
-});
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAEgGi4fMD14iVcqxl535SLLg--f4vJ5t8",
+  authDomain: "poker-39334.firebaseapp.com",
+  databaseURL: "https://poker-39334-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "poker-39334",
+  storageBucket: "poker-39334.appspot.com",
+  messagingSenderId: "709394997706",
+  appId: "1:709394997706:web:b099fecf3096710d2b2f33",
+  measurementId: "G-STJ1GE9L64"
+};
 
-let channel: Channel;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Cloud Firestore and get a reference to the service
+const db = getFirestore(app);
+// connectFirestoreEmulator(db, '127.0.0.1', 5679);
+
+let deskRef: DocumentReference;
 
 const points = [1, 2, 3, 5, 8, 13]
 
-interface AppData {
-  modeViewOnly: boolean,
-  points: number[],
-  cardsUp: boolean,
-  username: string,
-  userid: null | string,
+interface LocalState {
   changingName: boolean,
-  users: Player[],
   selected: null | number,
-  deskId: null | string
+  viewOnly: boolean,
+  userid: null | string,
+  username: string,
 }
 
-const state = reactive(<AppData>{
-  modeViewOnly: false,
+interface AppData {
+  // modeViewOnly: boolean,
+  points: number[],
+  // cardsUp: boolean,
+  // username: string,
+  // userid: null | string,
+  // changingName: boolean,
+  users: Player[],
+  // selected: null | number,
+  deskId: null | string,
+  state: "voting" | "revealing",
+  revealedAt: null | number
+}
+
+const appState = reactive(<AppData & LocalState>{
+  viewOnly: false,
   points: [1, 2, 3, 5, 8, 13],
   cardsUp: false,
   username: '',
@@ -131,14 +158,15 @@ const state = reactive(<AppData>{
   changingName: false,
   users: [],
   selected: null,
-  deskId: null
+  deskId: null,
+  state: "voting",
+  revealedAt: null
 });
-
 
 type VotedCount = {[key: number]: number}
 
 const votedPoints = computed(() => {
-  return state.users.reduce((points, user) => {
+  return appState.users.reduce((points, user) => {
     if (user.point) {
       points[user.point] = 1 + (points[user.point] || 0);
     }
@@ -147,191 +175,215 @@ const votedPoints = computed(() => {
   }, <VotedCount>{})
 })
 
-const me: ComputedRef<Player> = computed(() => state.users.find(u => u.id===state.userid)!)
+const me: ComputedRef<Player> = computed(() => appState.users.find(u => u.id === appState.userid)!)
 
 const desk = ref()
 
 const showRevealCards = computed(() => {
-  return state.users.filter(u => u.point != null).length > 0
+  return appState.users.filter(u => u.point != null).length > 0
 })
 
 const topUsers = computed(() => {
-  return state.users.filter((u, index) => index % 2 == 1 && index != 3);
+  return appState.users.filter((u, index) => index % 2 == 1 && index != 3);
 })
 
 const rightUsers = computed(() => {
-  return state.users.length >= 3 ? state.users.slice(2, 3) : [];
+  return appState.users.length >= 3 ? appState.users.slice(2, 3) : [];
 })
 
 const bottomUsers = computed(() => {
- return state.users.filter((u, index) => index % 2 == 0 && index != 2);
+ return appState.users.filter((u, index) => index % 2 == 0 && index != 2);
 })
 
 const leftUsers = computed(() => {
-  return state.users.length >= 4 ? state.users.slice(3, 4) : [];
+  return appState.users.length >= 4 ? appState.users.slice(3, 4) : [];
 })
 
 function onCardsUp() {
-  state.cardsUp = true
+  appState.state = "revealing";
 }
 
-function createNewTable() {
-  window.location.href= window.location.origin + window.location.pathname + "?table_id=" + Random.string();
+async function createNewTable(user: Player) {
+  const tableId = Random.string();
+  deskRef = doc(db, "desks", tableId)
+  await setDoc(doc(deskRef, "users", user.id as string), {
+      ...user,
+      isAdmin: true
+    });
+
+  window.location.href= window.location.origin + window.location.pathname + "?table_id=" + tableId;
 }
 
 function onCardFlipping() {
-  channel.trigger('client-request-flipping-cards', {});
+  setDoc(deskRef, {
+    state: "revealing",
+    revealedAt: Date.now() + 3000
+  })
 }
 
 function rename(username: string) {
   if (username) {
-      const id = state.userid;
-      state.username = username;
+      const id = appState.userid;
+      appState.username = username;
       renameUser(id!, username);
-      channel.trigger('client-ChangeName', {id, name: username});
-      localStorage.setItem('username', state.username);
+      localStorage.setItem('username', appState.username);
   }
-  state.changingName = false;
+  appState.changingName = false;
 }
 
 function renameUser(id: string, name: string) {
-  state.users.find(u => u.id === id)!.name = name
+  updateDoc(doc(deskRef, "users", id as string), { name })
+}
+
+async function createNewVote() {
+
+  const usersRef = collection(deskRef, "users")
+
+  const batch = writeBatch(db)
+
+  appState.users.forEach((user) => {
+    batch.update(doc(usersRef, user.id), {
+      point: null
+    })
+  })
+
+  await batch.commit()
+    await setDoc(deskRef, {
+      state: 'voting',
+    })
+
+    // Reset user's point
 }
 
 function onNewVoteCreated() {
-  state.cardsUp = false;
-  state.selected = null;
-  state.users.forEach((u) => (u.point = null));
-}
-
-function onNewVoteCreating() {
-  channel.trigger('client-new-vote', {});
+  desk.value.createNewVote();
+  // appState.cardsUp = false;
+  appState.state = "voting";
+  appState.selected = null;
 }
 
 function pointStateClasses(point: number) {
-  if (state.selected === point) {
+  if (appState.selected === point) {
     return ["bg-blue-500", "text-white", "relative", "top-[-4px]"];
   }
 
   return ["text-blue-500", "hover:bg-blue-200"];
 }
 
-
 function toggleSelection(point: number) {
-  if (state.selected === point) {
-    state.selected = null;
+  if (appState.selected === point) {
+    appState.selected = null;
   } else {
-    state.selected = point;
+    appState.selected = point;
   }
 
-  state.users.find(u => u.id == me.value.id)!.point = state.selected;
-  channel.trigger('client-select-point', {id: state.userid, point: state.selected});
+  appState.users.find(u => u.id == me.value.id)!.point = appState.selected;
+
+  updateDoc(doc(deskRef, "users", appState.userid as string), {
+    point: appState.selected
+  })
 }
 
-onMounted(() => {
+function joinToDesk(player: Player) {
+  const usersRef = doc(deskRef, "users", appState.userid as string)
+
+  return setDoc(usersRef, player)
+}
+
+function leaveDesk(player: Player) {
+  const usersRef = doc(deskRef, "users", player.id)
+  return deleteDoc(usersRef)
+}
+
+onMounted(async () => {
     // Leaving table
     window.addEventListener('beforeunload', (e) => {
-      channel.trigger('client-users-leave', {id: me.value.id});
-      pusher.unsubscribe(channel.name);
+      leaveDesk(me.value);
     });
 
     // Close change name input when user press escape
     const predefinedPoints = ['1', '2', '3', '5', '8'];
     document.addEventListener('keydown', (event) => {
-      if (event.code === 'Escape' && state.changingName) {
-        state.changingName = false;
+      if (event.code === 'Escape' && appState.changingName) {
+        appState.changingName = false;
       }
 
       const isPointAction = predefinedPoints.includes(event.key);
-      if (isPointAction && !state.modeViewOnly && !state.cardsUp) {
+      if (isPointAction && !appState.viewOnly && !(appState.state === "revealing")) {
         toggleSelection(parseInt(event.key));
       }
     });
 
-    // Grab table id from url
-    state.deskId = (new URLSearchParams(window.location.search)).get('table_id');
+    appState.username = localStorage.getItem("username") || '';
 
-    if (! state.deskId) {
-      return createNewTable();
-    }
-
-    state.username = localStorage.getItem("username") || '';
-
-    if (! state.username) {
-      state.username = names.random();
-      localStorage.setItem("username", state.username);
+    if (! appState.username) {
+      appState.username = names.random();
+      localStorage.setItem("username", appState.username);
     }
 
     if (! localStorage.getItem('userid')) {
       localStorage.setItem('userid', Date.now().toString());
     }
 
-    const user = <Player>{id: localStorage.getItem('userid')!, name: state.username, point: null};
-    state.userid = localStorage.getItem('userid');
-    state.users.push(user);
+    const user = <Player>{id: localStorage.getItem('userid')!, name: appState.username, point: null, viewOnly: appState.viewOnly};
+    appState.userid = localStorage.getItem('userid');
+    // state.users.push(user);
 
-    channel = pusher.subscribe(`private-${state.deskId}`);
+    // Grab table id from url
+    appState.deskId = (new URLSearchParams(window.location.search)).get('table_id');
 
-    channel.bind('pusher:subscription_succeeded', () => {
-      channel.trigger('client-users-join', user);
-    });
+    if (! appState.deskId) {
+      return await createNewTable(user);
+    } else {
+      deskRef = doc(db, "desks", appState.deskId as string)
+      await joinToDesk(user);
+    }
 
-    channel.bind('client-users-join', (data: Player) => {
-      if (! state.users.find(u => u.id === data.id)) {
-        // {id: data.id, name: data.name, point: null}
-        state.users.push(data);
+    onSnapshot(deskRef, (snapshot) => {
+      if (snapshot.get("state") === "revealing") {
+        const countdown = Math.trunc((snapshot.get("revealedAt") - Date.now()) / 1000);
+        desk.value.flipsCards(countdown);
+      } else if (snapshot.get("state") === "voting") {
+        onNewVoteCreated();
       }
+    })
 
-      // Send users on local state
-      channel.trigger('client-sync-users', state.users);
-    });
+    onSnapshot(collection(db, "desks", appState.deskId, "users"), (snapshot) => {
 
-    channel.bind('client-users-leave', (data: Player) => {
-      // check with current user to prevent a same user close at another tab.
-      if (state.users.find(u => u.id === data.id && u.id != state.userid)) {
-        state.users = state.users.filter(u => u.id !== data.id);
-      }
-    });
+      snapshot.docChanges().forEach((change) => {
 
-    channel.bind('client-users-view-only', (player: Player) => {
-      const user = state.users.find(u => u.id === player.id)!;
-      user.viewOnly = player.viewOnly;
-      user.point = null;
-    });
+        const user = change.doc.data() as Player;
 
-    channel.bind('client-ChangeName', (data: Player) => {
-      renameUser(data.id, data.name);
-    });
+        if (change.type == "added") {
+          appState.users.push(user)
+        }
 
-    channel.bind('client-select-point', (data: Player) => {
-      state.users.find(u => u.id === data.id)!.point = data.point;
-    });
+        if (change.type == "removed") {
+          appState.users = appState.users.filter((u) => u.id !== user.id)
+        }
 
-    channel.bind('client-sync-users', (users: Player[]) => {
-      state.users = users;
+        if (change.type == "modified") {
+          const candidate = appState.users.find((u) => u.id === user.id)
 
-      if (me.value.viewOnly) {
-        state.modeViewOnly = true;
-      }
-    });
-
-    channel.bind('client-new-vote', () => {
-      desk.value.createNewVote();
-      onNewVoteCreated();
-    });
-
-    channel.bind('client-request-flipping-cards', () => {
-      desk.value.flipsCards();
-    });
+          if (candidate) {
+            Object.assign(candidate, user)
+          }
+        }
+      })
+    })
 })
 
 watch(
-  () => state.modeViewOnly,
+  () => appState.viewOnly,
   (viewOnly) => {
     me.value.viewOnly = viewOnly;
     me.value.point = null;
-    state.selected = null;
-    channel.trigger('client-users-view-only', {id: state.userid, viewOnly});
+    appState.selected = null;
+
+    updateDoc(doc(deskRef, "users", appState.userid as string), {
+      viewOnly,
+      point: null
+    })
   }
 )
 </script>
